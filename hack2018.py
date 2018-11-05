@@ -1,12 +1,16 @@
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 import usaddress
 from functools import reduce
 from sklearn import tree
 import pygraphviz as graphviz
 import patsy
 import re
+from sklearn.ensemble import RandomForestClassifier
+forest_cl = RandomForestClassifier(n_estimators=100, max_depth=100,random_state=0, n_jobs=-1)
+tree_cl = tree.DecisionTreeClassifier(max_depth=100)
 
 justdigits = re.compile('\d+', re.IGNORECASE)
 
@@ -27,6 +31,16 @@ s = pd.Series({1:"District 1: Ashanti Hamilton",
 15:"District 15: Russell W. Stamper, II"})
 
 wibr = pd.read_pickle("wibr.pkl.gz",compression='gzip')
+aldermanic_districts = pd.DataFrame(s,columns=['Alderperson']).reset_index().rename(columns={'index':'ALD'})
+aldermanic_districts['ALD'] = aldermanic_districts.ALD.astype(float)
+major_crime_types=set([ 'Arson', 'AssaultOffense', 'Burglary', 'CriminalDamage','Homicide', 'LockedVehicle', 'Robbery', 'SexOffense', 'Theft','VehicleTheft'])
+
+def datetime_metadata(dt):
+	return pd.Series({'hour':dt.hour,'dte':dt.date(),'dayname':dt.day_name(),'month':dt.month_name(), 'year':dt.year})
+
+def foldin_date_metadata(df,dtf):
+    s = df[dtf].apply(lambda dt: datetime_metadata(dt))
+    return pd.concat([df,s],axis=1)
 
 def recognizableAddress(locationString):
     if type(locationString) == str:
@@ -64,8 +78,8 @@ def num_to_block(num):
 		else:
 			return m[:-2]+'00'
 
-df = wibr[(~wibr.ALD.isna()) & (wibr.StreetAddress==True)].sample(n=10000)
-model = 'ALD ~ block + street'
+df = wibr[(~wibr.ALD.isna()) & (wibr.StreetAddress==True)].sample(n=100000)
+model = 'ALD ~ block_street'
 y, X = patsy.dmatrices(model, df, return_type='dataframe')
 
 if __name__ == '__main__':
